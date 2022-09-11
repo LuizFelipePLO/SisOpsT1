@@ -8,10 +8,13 @@
 // Funcionalidades de carga, execução e dump de memória
 
 // Versão 0 = Interrupções e Chamadas de Sistema
+// Versão 1 = Gerente de Memória e Gerente de Processos
+
+
 
 import java.util.*;
 
-public class SistemaT1 {
+public class SistemaT1_v1 {
 
 	// -------------------------------------------------------------------------------------------------------
 	// --------------------- H A R D W A R E - definicoes de HW
@@ -636,7 +639,7 @@ public class SistemaT1 {
 	public SysCallHandling sysCall;
 	public static Programas progs;
 
-	public SistemaT1() { // a VM com tratamento de interrupções
+	public SistemaT1_v1() { // a VM com tratamento de interrupções
 		ih = new InterruptHandling();
 		sysCall = new SysCallHandling();
 		vm = new VM(ih, sysCall);
@@ -651,7 +654,7 @@ public class SistemaT1 {
 	// -------------------------------------------------------------------------------------------------------
 	// ------------------- instancia e testa sistema
 	public static void main(String args[]) {
-		SistemaT1 s = new SistemaT1();
+		SistemaT1_v1 s = new SistemaT1_v1();
 		// s.loadAndExec(progs.fibonacci10);
 		// s.loadAndExec(progs.progMinimo);
 		//s.loadAndExec(progs.fatorial);
