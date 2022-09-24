@@ -10,8 +10,6 @@
 // Versão 0 = Interrupções e Chamadas de Sistema
 // Versão 1 = Gerente de Memória e Gerente de Processos
 
-
-
 import java.util.*;
 
 public class SistemaT1_v1 {
@@ -29,7 +27,7 @@ public class SistemaT1_v1 {
 		public int tamPart;
 		public int partTotal;
 		public int availableMem;
-		public int[] partitions;
+		public List<Integer> partitions = Arrays.asList(new Integer[partTotal]);
 		public Word[] m; // m representa a memória fisica: um array de posicoes de memoria (word)
 
 		// todo: split m into partitions
@@ -39,7 +37,7 @@ public class SistemaT1_v1 {
 			partTotal = sizeMem / sizePart;
 			m = new Word[tamMem];
 			availableMem = sizeMem;
-		
+
 			for (int i = 0; i < tamMem; i++) {
 				m[i] = new Word(Opcode.___, -1, -1, -1);
 			}
@@ -47,11 +45,26 @@ public class SistemaT1_v1 {
 		}
 
 		public boolean allocate(int dataSize) {
-			if (dataSize <= partTotal) {
-				availableMem = -dataSize;
-				return true;
+			boolean isAllocated = false;
+
+			for (int i = 0; i < partitions.size(); i++) {
+				if ((dataSize + partitions.get(i)) <= tamPart) {
+					availableMem = -dataSize;
+					partitions.add(i, dataSize);
+					isAllocated = true;
+					System.out.println("Dados alocados na partição " + i);
+					break;
+				}
 			}
-			return false;
+			if (isAllocated == false) {
+				System.out.println("Dados não alocados por falta de memória");
+			}
+			return isAllocated;
+		}
+
+		public void freeUp(int part) {
+			partitions.remove(part);
+			System.out.println("Partição " + part + " liberada");
 
 		}
 
@@ -108,7 +121,8 @@ public class SistemaT1_v1 {
 	}
 
 	public enum Interrupts { // possiveis interrupcoes que esta CPU gera
-		noInterrupt, intEnderecoInvalido, intInstrucaoInvalida, intRegistradorInvalido, intOverflow, chamadaTrap, intSTOP;
+		noInterrupt, intEnderecoInvalido, intInstrucaoInvalida, intRegistradorInvalido, intOverflow, chamadaTrap,
+		intSTOP;
 	}
 
 	public class CPU {
@@ -148,26 +162,29 @@ public class SistemaT1_v1 {
 		}
 
 		private boolean legal(int e) { // todo acesso a memoria tem que ser verificado
-			if ((e < minInt) || (e > maxInt)) {                       
-				irpt = Interrupts.intOverflow;             
+			if ((e < minInt) || (e > maxInt)) {
+				irpt = Interrupts.intOverflow;
 				return false;
-			};
+			}
+			;
 			return true;
 		}
 
-		private boolean enderecoValido(int end){ // se acessar endereço fora do limite
+		private boolean enderecoValido(int end) { // se acessar endereço fora do limite
 			if ((end < base) || (end > limite)) {
 				irpt = Interrupts.intEnderecoInvalido;
 				return false;
-			};
+			}
+			;
 			return true;
 		}
 
-		private boolean registradorValido(int registrador){//verifica registrador valido 0 a 7
-			if (registrador < 0|| registrador > reg.length){ 
+		private boolean registradorValido(int registrador) {// verifica registrador valido 0 a 7
+			if (registrador < 0 || registrador > reg.length) {
 				irpt = Interrupts.intRegistradorInvalido;
 				return false;
-			};
+			}
+			;
 			return true;
 		}
 
@@ -179,8 +196,6 @@ public class SistemaT1_v1 {
 			;
 			return true;
 		}
-
-		
 
 		public void setContext(int _base, int _limite, int _pc) { // no futuro esta funcao vai ter que ser
 			base = _base; // expandida para setar todo contexto de execucao,
@@ -210,122 +225,117 @@ public class SistemaT1_v1 {
 								reg[ir.r1] = ir.p;
 								pc++;
 								break;
-							}
-							else
+							} else
 								break;
-							
 
 						case LDD: // Rd <- [A]
-						if (registradorValido(ir.r1) && enderecoValido(ir.p) && testOverflow(m[ir.p].p)){
-							reg[ir.r1] = m[ir.p].p;
-							pc++;
-							break;
-						 } 
-						 else
-							 break;
-
+							if (registradorValido(ir.r1) && enderecoValido(ir.p) && testOverflow(m[ir.p].p)) {
+								reg[ir.r1] = m[ir.p].p;
+								pc++;
+								break;
+							} else
+								break;
 
 						case LDX: // RD <- [RS] // NOVA carga indireta
-							if (registradorValido(ir.r1) && registradorValido(ir.r2) && enderecoValido(reg[ir.r2]) && testOverflow(m[reg[ir.r2]].p)) {
+							if (registradorValido(ir.r1) && registradorValido(ir.r2) && enderecoValido(reg[ir.r2])
+									&& testOverflow(m[reg[ir.r2]].p)) {
 								reg[ir.r1] = m[reg[ir.r2]].p;
 								pc++;
 								break;
-							}
-							else
+							} else
 								break;
 
 						case STD: // [A] ← Rs armazena na memória
-						    if (registradorValido(ir.r1) && enderecoValido(ir.p) && testOverflow(reg[ir.r1])){
-							    m[ir.p].opc = Opcode.DATA;
-							    m[ir.p].p = reg[ir.r1];
-							    pc++;
+							if (registradorValido(ir.r1) && enderecoValido(ir.p) && testOverflow(reg[ir.r1])) {
+								m[ir.p].opc = Opcode.DATA;
+								m[ir.p].p = reg[ir.r1];
+								pc++;
 								break;
-							}else 
+							} else
 								break;
 
 						case STX: // [Rd] ←Rs armazenamento indireto na memória
-						    if (registradorValido(ir.r1) && registradorValido(ir.r2) && enderecoValido(reg[ir.r1]) && testOverflow(reg[ir.r2])) {
-							    m[reg[ir.r1]].opc = Opcode.DATA;      
-							    m[reg[ir.r1]].p = reg[ir.r2];          
+							if (registradorValido(ir.r1) && registradorValido(ir.r2) && enderecoValido(reg[ir.r1])
+									&& testOverflow(reg[ir.r2])) {
+								m[reg[ir.r1]].opc = Opcode.DATA;
+								m[reg[ir.r1]].p = reg[ir.r2];
 								pc++;
 								break;
-							} 
-							else
+							} else
 								break;
-						
+
 						case MOVE: // RD <- RS
-							if(registradorValido(ir.r1) && registradorValido(ir.r2)) {
+							if (registradorValido(ir.r1) && registradorValido(ir.r2)) {
 								reg[ir.r1] = reg[ir.r2];
 								pc++;
-								break;	
+								break;
 							} else
-								break;	
-							
-					// Instrucoes Aritmeticas
+								break;
+
+							// Instrucoes Aritmeticas
 						case ADD: // Rd ← Rd + Rs
-							if(registradorValido(ir.r1) && registradorValido(ir.r2) && 
-							testOverflow(reg[ir.r1]) && testOverflow(reg[ir.r2]) && 
-							testOverflow(reg[ir.r1] + reg[ir.r2])) {
+							if (registradorValido(ir.r1) && registradorValido(ir.r2) &&
+									testOverflow(reg[ir.r1]) && testOverflow(reg[ir.r2]) &&
+									testOverflow(reg[ir.r1] + reg[ir.r2])) {
 								reg[ir.r1] = reg[ir.r1] + reg[ir.r2];
-								//testOverflow(reg[ir.r1]);
+								// testOverflow(reg[ir.r1]);
 								pc++;
 								break;
 							} else
 								pc++;
-								break;	
+							break;
 
 						case ADDI: // Rd ← Rd + k adição imediata
-							if(registradorValido(ir.r1) && testOverflow(reg[ir.r1]) && testOverflow(reg[ir.p]) && 
-							testOverflow(reg[ir.r1] + ir.p) ) {
+							if (registradorValido(ir.r1) && testOverflow(reg[ir.r1]) && testOverflow(reg[ir.p]) &&
+									testOverflow(reg[ir.r1] + ir.p)) {
 								reg[ir.r1] = reg[ir.r1] + ir.p;
 								pc++;
 								break;
 							} else
 								pc++;
-								break;
+							break;
 
 						case SUB: // Rd ← Rd - Rs
-							if(registradorValido(ir.r1) && registradorValido(ir.r2) 
-							&& testOverflow(reg[ir.r1]) && testOverflow(reg[ir.r2])
-							&& testOverflow(reg[ir.r1] - reg[ir.r2])) {
-								reg[ir.r1] = reg[ir.r1] - reg[ir.r2];								
+							if (registradorValido(ir.r1) && registradorValido(ir.r2)
+									&& testOverflow(reg[ir.r1]) && testOverflow(reg[ir.r2])
+									&& testOverflow(reg[ir.r1] - reg[ir.r2])) {
+								reg[ir.r1] = reg[ir.r1] - reg[ir.r2];
 								pc++;
 								break;
 							} else
 								pc++;
-								break;	
+							break;
 
 						case SUBI: // RD <- RD - k // NOVA
-							if(registradorValido(ir.r1) && enderecoValido(ir.p) && testOverflow(reg[ir.r1]) && testOverflow(reg[ir.p]) && testOverflow(reg[ir.r1] - ir.p)) {
+							if (registradorValido(ir.r1) && enderecoValido(ir.p) && testOverflow(reg[ir.r1])
+									&& testOverflow(reg[ir.p]) && testOverflow(reg[ir.r1] - ir.p)) {
 								reg[ir.r1] = reg[ir.r1] - ir.p;
 								pc++;
 								break;
 							} else
 								pc++;
-								break;		
-
+							break;
 
 						case MULT: // Rd <- Rd * Rs
-							if(registradorValido(ir.r1) && registradorValido(ir.r2) && testOverflow(reg[ir.r1]) && testOverflow(reg[ir.r2]) && testOverflow(reg[ir.r1] * reg[ir.r2])) {
-								reg[ir.r1] = reg[ir.r1] * reg[ir.r2]; 								
+							if (registradorValido(ir.r1) && registradorValido(ir.r2) && testOverflow(reg[ir.r1])
+									&& testOverflow(reg[ir.r2]) && testOverflow(reg[ir.r1] * reg[ir.r2])) {
+								reg[ir.r1] = reg[ir.r1] * reg[ir.r2];
 								pc++;
 								break;
-							}else 
+							} else
 								pc++;
-								break;
-													
-								
-			
-					// Instrucoes JUMP
+							break;
+
+						// Instrucoes JUMP
 						case JMP: // PC <- k desvio incondicional
 							if (enderecoValido(ir.p)) {
 								pc = ir.p;
 								break;
 							} else
 								break;
-						
+
 						case JMPIG: // If Rc > 0 Then PC ← Rs Else PC ← PC +1 desvio condicinal
-							if(registradorValido(ir.r2) && registradorValido(ir.r1) && enderecoValido (reg[ir.r1])) {
+							if (registradorValido(ir.r2) && registradorValido(ir.r1) && enderecoValido(reg[ir.r1])) {
 								if (reg[ir.r2] > 0) {
 									pc = reg[ir.r1];
 								} else {
@@ -335,10 +345,9 @@ public class SistemaT1_v1 {
 							} else {
 								break;
 							}
-							
 
 						case JMPIGK: // If RC > 0 then PC <- k else PC++
-							if(registradorValido(ir.r2) && enderecoValido(ir.p)) {
+							if (registradorValido(ir.r2) && enderecoValido(ir.p)) {
 								if (reg[ir.r2] > 0) {
 									pc = ir.p;
 								} else {
@@ -348,9 +357,9 @@ public class SistemaT1_v1 {
 							} else {
 								break;
 							}
-		
+
 						case JMPILK: // If RC < 0 then PC <- k else PC++
-							if(registradorValido(ir.r2) && enderecoValido(ir.p)) {
+							if (registradorValido(ir.r2) && enderecoValido(ir.p)) {
 								if (reg[ir.r2] < 0) {
 									pc = ir.p;
 								} else {
@@ -360,101 +369,101 @@ public class SistemaT1_v1 {
 							} else {
 								break;
 							}
-	
+
 						case JMPIEK: // If RC = 0 then PC <- k else PC++
-							if(registradorValido(ir.r2) && enderecoValido(ir.p)) {
-									if (reg[ir.r2] == 0) {
-										pc = ir.p;
-									} else {
-										pc++;
-									}
-									break;
+							if (registradorValido(ir.r2) && enderecoValido(ir.p)) {
+								if (reg[ir.r2] == 0) {
+									pc = ir.p;
 								} else {
-									break;
-								}		
-	
-						case JMPIL: // if Rc < 0 then PC <- Rs Else PC <- PC +1
-							if(registradorValido(ir.r2) && registradorValido(ir.r1) &&
-							enderecoValido(reg[ir.r1])) {
-									if (reg[ir.r2] < 0) {
-											pc = reg[ir.r1];
-										} else {
-											pc++;
-									}
-										break;
-								} else {
-									break;
+									pc++;
 								}
-		
-						case JMPIE: // If Rc = 0 Then PC <- Rs Else PC <- PC +1
-							if(registradorValido(ir.r2) && registradorValido(ir.r1) && enderecoValido(reg[ir.r1])) {
-									if (reg[ir.r2] == 0) {
-										pc = reg[ir.r1];
-									} else {
-										pc++;
-									}
-								break; 
+								break;
 							} else {
 								break;
 							}
-	
+
+						case JMPIL: // if Rc < 0 then PC <- Rs Else PC <- PC +1
+							if (registradorValido(ir.r2) && registradorValido(ir.r1) &&
+									enderecoValido(reg[ir.r1])) {
+								if (reg[ir.r2] < 0) {
+									pc = reg[ir.r1];
+								} else {
+									pc++;
+								}
+								break;
+							} else {
+								break;
+							}
+
+						case JMPIE: // If Rc = 0 Then PC <- Rs Else PC <- PC +1
+							if (registradorValido(ir.r2) && registradorValido(ir.r1) && enderecoValido(reg[ir.r1])) {
+								if (reg[ir.r2] == 0) {
+									pc = reg[ir.r1];
+								} else {
+									pc++;
+								}
+								break;
+							} else {
+								break;
+							}
+
 						case JMPIM: // PC <- [A]
-							if(enderecoValido(ir.p) && enderecoValido(m[ir.p].p)) {
-								 pc = m[ir.p].p;
-							 break; 
+							if (enderecoValido(ir.p) && enderecoValido(m[ir.p].p)) {
+								pc = m[ir.p].p;
+								break;
 							} else {
 								break;
 							}
 						case JMPIGM: // If RC > 0 then PC <- [A] else PC++
-							if(registradorValido(ir.r2) && enderecoValido(ir.p) && 
-							enderecoValido(m[ir.p].p)) {
-									if (reg[ir.r2] > 0) {
-										pc = m[ir.p].p;
-									} else {
-										pc++;
-									}
-								break;  
-							} else{
+							if (registradorValido(ir.r2) && enderecoValido(ir.p) &&
+									enderecoValido(m[ir.p].p)) {
+								if (reg[ir.r2] > 0) {
+									pc = m[ir.p].p;
+								} else {
+									pc++;
+								}
+								break;
+							} else {
 								break;
 							}
-	
+
 						case JMPILM: // If RC < 0 then PC <- k else PC++
-							if(registradorValido(ir.r2) && enderecoValido(ir.p) && enderecoValido(m[ir.p].p)) {
-									if (reg[ir.r2] < 0) {
-										pc = m[ir.p].p;
-									} else {
-										pc++;
-									}
-								break; 
+							if (registradorValido(ir.r2) && enderecoValido(ir.p) && enderecoValido(m[ir.p].p)) {
+								if (reg[ir.r2] < 0) {
+									pc = m[ir.p].p;
+								} else {
+									pc++;
+								}
+								break;
 							} else {
 								break;
 							}
-	
+
 						case JMPIEM: // If RC = 0 then PC <- k else PC++
-							if(registradorValido(ir.r2) && enderecoValido(ir.p) && enderecoValido(m[ir.p].p)) {
-									if (reg[ir.r2] == 0) {
-										pc = m[ir.p].p;
-									} else {
-										pc++;
-									}
-								break; 
+							if (registradorValido(ir.r2) && enderecoValido(ir.p) && enderecoValido(m[ir.p].p)) {
+								if (reg[ir.r2] == 0) {
+									pc = m[ir.p].p;
+								} else {
+									pc++;
+								}
+								break;
 							} else {
 								break;
 							}
-	
+
 						case JMPIGT: // If RS>RC then PC <- k else PC++
-							if(registradorValido(ir.r2) && registradorValido(ir.r1) && enderecoValido (ir.p)){
+							if (registradorValido(ir.r2) && registradorValido(ir.r1) && enderecoValido(ir.p)) {
 								if (reg[ir.r1] > reg[ir.r2]) {
 									pc = ir.p;
 								} else {
 									pc++;
 								}
-							 break; 
+								break;
 							} else {
 								break;
 							}
 
-					// outras
+							// outras
 						case STOP: // por enquanto, para execucao
 							irpt = Interrupts.intSTOP;
 							break;
@@ -463,27 +472,28 @@ public class SistemaT1_v1 {
 							pc++;
 							break;
 
-					// Chamada de sistema
-					    case TRAP:
-						     sysCall.handle();            // <<<<< aqui desvia para rotina de chamada de sistema, no momento so temos IO
-							 pc++;
-						     break;
+						// Chamada de sistema
+						case TRAP:
+							sysCall.handle(); // <<<<< aqui desvia para rotina de chamada de sistema, no momento so
+												// temos IO
+							pc++;
+							break;
 
-					// Inexistente
+						// Inexistente
 						default:
 							irpt = Interrupts.intInstrucaoInvalida;
 							break;
 					}
 				}
-				 // --------------------------------------------------------------------------------------------------
-			   // VERIFICA INTERRUPÇÃO !!! - TERCEIRA FASE DO CICLO DE INSTRUÇÕES
-			   if (!(irpt == Interrupts.noInterrupt)) {   // existe interrupção
-				ih.handle(irpt, pc);                       // desvia para rotina de tratamento
-				break; // break sai do loop da cpu
-			}
-		}  // FIM DO CICLO DE UMA INSTRUÇÃO
-	}      
-}
+				// --------------------------------------------------------------------------------------------------
+				// VERIFICA INTERRUPÇÃO !!! - TERCEIRA FASE DO CICLO DE INSTRUÇÕES
+				if (!(irpt == Interrupts.noInterrupt)) { // existe interrupção
+					ih.handle(irpt, pc); // desvia para rotina de tratamento
+					break; // break sai do loop da cpu
+				}
+			} // FIM DO CICLO DE UMA INSTRUÇÃO
+		}
+	}
 	// ------------------ C P U - fim
 	// ------------------------------------------------------------------------
 	// -------------------------------------------------------------------------------------------------------
@@ -546,7 +556,7 @@ public class SistemaT1_v1 {
 				case intRegistradorInvalido:
 					System.out.println("Motivo: Registrador inválido");
 					finalizaPrograma();
-					break;	
+					break;
 				case intOverflow:
 					System.out.println("Motivo: Overflow");
 					finalizaPrograma();
@@ -554,25 +564,29 @@ public class SistemaT1_v1 {
 				case chamadaTrap:
 					System.out.println("Motivo: Chamada de sistema");
 					terminal();
-					break;	
+					break;
 			}
 		}
 
-		private void terminal(){
+		private void terminal() {
 			Locale.setDefault(Locale.US);
 			Scanner sc = new Scanner(System.in);
 
-			if (vm.cpu.reg[8]==1){//leitura de um inteiro
-				int pos=vm.cpu.reg[9];
-				System.out.println("                                               Lendo da função Trap para pos de memória: "+ pos);
+			if (vm.cpu.reg[8] == 1) {// leitura de um inteiro
+				int pos = vm.cpu.reg[9];
+				System.out.println(
+						"                                               Lendo da função Trap para pos de memória: "
+								+ pos);
 				int var = sc.nextInt();
-				vm.m[pos].p=var;
+				vm.m[pos].p = var;
 			}
-			if (vm.cpu.reg[8]==2){ //escrita de um inteiro
-				int pos=vm.cpu.reg[9];
+			if (vm.cpu.reg[8] == 2) { // escrita de um inteiro
+				int pos = vm.cpu.reg[9];
 				int var = vm.m[pos].p;
-				vm.m[pos].p=var;
-				System.out.println("                                               Imprimindo da função Trap: resposta: " + var + " e pos de memória: "+ pos);	
+				vm.m[pos].p = var;
+				System.out
+						.println("                                               Imprimindo da função Trap: resposta: "
+								+ var + " e pos de memória: " + pos);
 			}
 
 		}
@@ -583,7 +597,6 @@ public class SistemaT1_v1 {
 		}
 
 	}
-	
 
 	// ------------------- C H A M A D A S D E S I S T E M A - rotinas de tratamento
 	// ----------------------
@@ -598,7 +611,7 @@ public class SistemaT1_v1 {
 			System.out.println("                                               Chamada de Sistema com op  /  par:  "
 					+ vm.cpu.reg[8] + " / " + vm.cpu.reg[9]);
 
-			ih.handle(Interrupts.chamadaTrap, vm.cpu.pc);		
+			ih.handle(Interrupts.chamadaTrap, vm.cpu.pc);
 		}
 	}
 
@@ -657,18 +670,17 @@ public class SistemaT1_v1 {
 		SistemaT1_v1 s = new SistemaT1_v1();
 		// s.loadAndExec(progs.fibonacci10);
 		// s.loadAndExec(progs.progMinimo);
-		//s.loadAndExec(progs.fatorial);
+		// s.loadAndExec(progs.fatorial);
 		// s.loadAndExec(progs.fatorialTRAP); // saida
 		// s.loadAndExec(progs.fibonacciTRAP); // entrada
 		// s.loadAndExec(progs.PC); // bubble sort
 
-
-		//Teste interrupções
-		//s.loadAndExec(progs.testeLeitura);//teste leitura
-		//s.loadAndExec(progs.testeEscrita);//teste escrita
-		//s.loadAndExec(progs.fatorialTeste); // testando registrador inválido
-		//s.loadAndExec(progs.fatorialTesteEndereco); // testando endereço inválido
-		//s.loadAndExec(progs.TestandoOverflow); // testando overflow na soma
+		// Teste interrupções
+		// s.loadAndExec(progs.testeLeitura);//teste leitura
+		// s.loadAndExec(progs.testeEscrita);//teste escrita
+		// s.loadAndExec(progs.fatorialTeste); // testando registrador inválido
+		// s.loadAndExec(progs.fatorialTesteEndereco); // testando endereço inválido
+		// s.loadAndExec(progs.TestandoOverflow); // testando overflow na soma
 		s.loadAndExec(progs.TestandoOverflowParam); // testando overflow no parametro recebido
 
 	}
@@ -901,16 +913,15 @@ public class SistemaT1_v1 {
 				new Word(Opcode.DATA, -1, -1, -1),
 				new Word(Opcode.DATA, -1, -1, -1) };
 
-				
 		public Word[] testeLeitura = new Word[] {
 				new Word(Opcode.LDI, 8, -1, 1),
 				new Word(Opcode.LDI, 9, -1, 4),
 				new Word(Opcode.TRAP, -1, -1, -1),
 				new Word(Opcode.STOP, -1, -1, -1),
-				new Word(Opcode.DATA, -1, -1, -1)};
-				
+				new Word(Opcode.DATA, -1, -1, -1) };
+
 		public Word[] testeEscrita = new Word[] {
-			 	new Word(Opcode.LDI, 0, -1, 999),
+				new Word(Opcode.LDI, 0, -1, 999),
 				new Word(Opcode.STD, 0, -1, 10),
 				new Word(Opcode.LDI, 8, -1, 2),
 				new Word(Opcode.LDI, 9, -1, 10),
@@ -920,69 +931,66 @@ public class SistemaT1_v1 {
 				new Word(Opcode.DATA, -1, -1, -1),
 				new Word(Opcode.DATA, -1, -1, -1),
 				new Word(Opcode.DATA, -1, -1, -1),
-				new Word(Opcode.DATA, -1, -1, -1)};
-				
+				new Word(Opcode.DATA, -1, -1, -1) };
 
-				// Teste registrador inválido	
+		// Teste registrador inválido
 		public Word[] fatorialTeste = new Word[] {
-			// este fatorial so aceita valores positivos.   nao pode ser zero
-										  // linha   coment
-				new Word(Opcode.LDI, 0, -1, 4),      // 0   	r0 é valor a calcular fatorial
-				new Word(Opcode.LDI, 1, -1, 1),      // 1   	r1 é 1 para multiplicar (por r0)
-				new Word(Opcode.LDI, 12, -1, 1),      // 2   	r6 é 1 para ser o decremento
-				new Word(Opcode.LDI, 7, -1, 8),      // 3   	r7 tem posicao de stop do programa = 8
-				new Word(Opcode.JMPIE, 7, 0, 0),     // 4   	se r0=0 pula para r7(=8)
-				new Word(Opcode.MULT, 1, 0, -1),     // 5   	r1 = r1 * r0
-				new Word(Opcode.SUB, 0, 6, -1),      // 6   	decrementa r0 1 
-				new Word(Opcode.JMP, -1, -1, 4),     // 7   	vai p posicao 4
-				new Word(Opcode.STD, 1, -1, 10),     // 8   	coloca valor de r1 na posição 10
-				new Word(Opcode.STOP, -1, -1, -1),   // 9   	stop
-				new Word(Opcode.DATA, -1, -1, -1) }; // 10   ao final o valor do fatorial estará na posição 10 da memória  	
+				// este fatorial so aceita valores positivos. nao pode ser zero
+				// linha coment
+				new Word(Opcode.LDI, 0, -1, 4), // 0 r0 é valor a calcular fatorial
+				new Word(Opcode.LDI, 1, -1, 1), // 1 r1 é 1 para multiplicar (por r0)
+				new Word(Opcode.LDI, 12, -1, 1), // 2 r6 é 1 para ser o decremento
+				new Word(Opcode.LDI, 7, -1, 8), // 3 r7 tem posicao de stop do programa = 8
+				new Word(Opcode.JMPIE, 7, 0, 0), // 4 se r0=0 pula para r7(=8)
+				new Word(Opcode.MULT, 1, 0, -1), // 5 r1 = r1 * r0
+				new Word(Opcode.SUB, 0, 6, -1), // 6 decrementa r0 1
+				new Word(Opcode.JMP, -1, -1, 4), // 7 vai p posicao 4
+				new Word(Opcode.STD, 1, -1, 10), // 8 coloca valor de r1 na posição 10
+				new Word(Opcode.STOP, -1, -1, -1), // 9 stop
+				new Word(Opcode.DATA, -1, -1, -1) }; // 10 ao final o valor do fatorial estará na posição 10 da memória
 
+		public Word[] fatorialTesteEndereco = new Word[] {
 
-	public Word[] fatorialTesteEndereco = new Word[] {
-				
-											// linha   coment
-				new Word(Opcode.LDI, 0, -1, 4),      // 0   	r0 é valor a calcular fatorial
-				new Word(Opcode.LDI, 1, -1, 1),      // 1   	r1 é 1 para multiplicar (por r0)
-				new Word(Opcode.LDI, 6, -1, 1),      // 2   	r6 é 1 para ser o decremento
-				new Word(Opcode.LDI, 7, -1, 8),      // 3   	r7 tem posicao de stop do programa = 8
-				new Word(Opcode.JMPIE, 7, 0, 0),     // 4   	se r0=0 pula para r7(=8)
-				new Word(Opcode.MULT, 1, 0, -1),     // 5   	r1 = r1 * r0
-				new Word(Opcode.SUB, 0, 6, -1),      // 6   	decrementa r0 1 
-				new Word(Opcode.JMP, -1, -1, 4),     // 7   	vai p posicao 4
-				new Word(Opcode.STD, 1, -1, 32768),     // 8   	coloca valor de r1 na posição 10
-				new Word(Opcode.STOP, -1, -1, -1),   // 9   	stop
-				new Word(Opcode.DATA, -1, -1, -1) }; // 10   ao final o valor do fatorial estará na posição 10 da memória   
-	
-	
-	public Word[] TestandoOverflow = new Word[] {
-		
-									// linha   coment
-				new Word(Opcode.LDI, 0, -1, 4),      
-				new Word(Opcode.LDI, 1, -1, 32000),    
-				new Word(Opcode.LDI, 3, -1, 1000),      
-				new Word(Opcode.ADD, 3, 1,-1),
-				new Word(Opcode.STD, 3, -1, 6),    
-				new Word(Opcode.STOP, -1, -1, -1),  
-				new Word(Opcode.DATA, -1, -1, -1),   
-				new Word(Opcode.DATA, -1, -1, -1), 
-				new Word(Opcode.DATA, -1, -1, -1),   
-				new Word(Opcode.DATA, -1, -1, -1) };  
-				
-	public Word[] TestandoOverflowParam = new Word[] {
-	
-									// linha   coment
-				new Word(Opcode.LDI, 0, -1, 4),      
-				new Word(Opcode.LDI, 1, -1, 32800),      
-				new Word(Opcode.LDI, 3, -1, 3),      
-				new Word(Opcode.ADD, 3, 1,-1),
-				new Word(Opcode.STD, 3, -1, 6),    
-				new Word(Opcode.STOP, -1, -1, -1),  
-				new Word(Opcode.DATA, -1, -1, -1),    
-				new Word(Opcode.DATA, -1, -1, -1), 
-				new Word(Opcode.DATA, -1, -1, -1),      
-				new Word(Opcode.DATA, -1, -1, -1) }; 			
-		
-}
+				// linha coment
+				new Word(Opcode.LDI, 0, -1, 4), // 0 r0 é valor a calcular fatorial
+				new Word(Opcode.LDI, 1, -1, 1), // 1 r1 é 1 para multiplicar (por r0)
+				new Word(Opcode.LDI, 6, -1, 1), // 2 r6 é 1 para ser o decremento
+				new Word(Opcode.LDI, 7, -1, 8), // 3 r7 tem posicao de stop do programa = 8
+				new Word(Opcode.JMPIE, 7, 0, 0), // 4 se r0=0 pula para r7(=8)
+				new Word(Opcode.MULT, 1, 0, -1), // 5 r1 = r1 * r0
+				new Word(Opcode.SUB, 0, 6, -1), // 6 decrementa r0 1
+				new Word(Opcode.JMP, -1, -1, 4), // 7 vai p posicao 4
+				new Word(Opcode.STD, 1, -1, 32768), // 8 coloca valor de r1 na posição 10
+				new Word(Opcode.STOP, -1, -1, -1), // 9 stop
+				new Word(Opcode.DATA, -1, -1, -1) }; // 10 ao final o valor do fatorial estará na posição 10 da memória
+
+		public Word[] TestandoOverflow = new Word[] {
+
+				// linha coment
+				new Word(Opcode.LDI, 0, -1, 4),
+				new Word(Opcode.LDI, 1, -1, 32000),
+				new Word(Opcode.LDI, 3, -1, 1000),
+				new Word(Opcode.ADD, 3, 1, -1),
+				new Word(Opcode.STD, 3, -1, 6),
+				new Word(Opcode.STOP, -1, -1, -1),
+				new Word(Opcode.DATA, -1, -1, -1),
+				new Word(Opcode.DATA, -1, -1, -1),
+				new Word(Opcode.DATA, -1, -1, -1),
+				new Word(Opcode.DATA, -1, -1, -1) };
+
+		public Word[] TestandoOverflowParam = new Word[] {
+
+				// linha coment
+				new Word(Opcode.LDI, 0, -1, 4),
+				new Word(Opcode.LDI, 1, -1, 32800),
+				new Word(Opcode.LDI, 3, -1, 3),
+				new Word(Opcode.ADD, 3, 1, -1),
+				new Word(Opcode.STD, 3, -1, 6),
+				new Word(Opcode.STOP, -1, -1, -1),
+				new Word(Opcode.DATA, -1, -1, -1),
+				new Word(Opcode.DATA, -1, -1, -1),
+				new Word(Opcode.DATA, -1, -1, -1),
+				new Word(Opcode.DATA, -1, -1, -1) };
+
+	}
 }
