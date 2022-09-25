@@ -23,71 +23,28 @@ public class SistemaT1_v1 {
 	// memória ----------------------
 
 	public class Memory {
-		public int tamMem;
-		public int tamPart;
-		public int partTotal;
-		public int availableMem;
-		public List<Integer> partitions = Arrays.asList(new Integer[partTotal]);
-		public Word[] m; // m representa a memória fisica: um array de posicoes de memoria (word)
-
-		// todo: split m into partitions
-		// partition end = (part+1)*tamPart -1
-		public Memory(int sizeMem, int sizePart) {
-			tamMem = sizeMem;
-			partTotal = sizeMem / sizePart;
-			m = new Word[tamMem];
-			availableMem = sizeMem;
-
-			for (int i = 0; i < tamMem; i++) {
-				m[i] = new Word(Opcode.___, -1, -1, -1);
-			}
-			;
+		public int tamMem;    
+        public Word[] m;                  // m representa a memória fisica:   um array de posicoes de memoria (word)
+	
+		public Memory(int size){
+			tamMem = size;
+		    m = new Word[tamMem];      
+		    for (int i=0; i<tamMem; i++) { m[i] = new Word(Opcode.___,-1,-1,-1); };
 		}
-
-		public boolean allocate(int dataSize) {
-			boolean isAllocated = false;
-
-			for (int i = 0; i < partitions.size(); i++) {
-				if ((dataSize + partitions.get(i)) <= tamPart) {
-					availableMem = -dataSize;
-					partitions.add(i, dataSize);
-					isAllocated = true;
-					System.out.println("Dados alocados na partição " + i);
-					break;
-				}
-			}
-			if (isAllocated == false) {
-				System.out.println("Dados não alocados por falta de memória");
-			}
-			return isAllocated;
+		
+		public void dump(Word w) {        // funcoes de DUMP nao existem em hardware - colocadas aqui para facilidade
+						System.out.print("[ "); 
+						System.out.print(w.opc); System.out.print(", ");
+						System.out.print(w.r1);  System.out.print(", ");
+						System.out.print(w.r2);  System.out.print(", ");
+						System.out.print(w.p);  System.out.println("  ] ");
 		}
-
-		public void freeUp(int part) {
-			partitions.remove(part);
-			System.out.println("Partição " + part + " liberada");
-
-		}
-
-		public void dump(Word w) { // funcoes de DUMP nao existem em hardware - colocadas aqui para facilidade
-			System.out.print("[ ");
-			System.out.print(w.opc);
-			System.out.print(", ");
-			System.out.print(w.r1);
-			System.out.print(", ");
-			System.out.print(w.r2);
-			System.out.print(", ");
-			System.out.print(w.p);
-			System.out.println("  ] ");
-		}
-
 		public void dump(int ini, int fim) {
-			for (int i = ini; i < fim; i++) {
-				System.out.print(i);
-				System.out.print(":  ");
-				dump(m[i]);
+			for (int i = ini; i < fim; i++) {		
+				System.out.print(i); System.out.print(":  ");  dump(m[i]);
 			}
 		}
-	}
+    }
 
 	// -------------------------------------------------------------------------------------------------------
 
@@ -128,6 +85,10 @@ public class SistemaT1_v1 {
 	public class CPU {
 		private int maxInt; // valores maximo e minimo para inteiros nesta cpu
 		private int minInt;
+
+		private int tamParticao; 
+
+		
 		// característica do processador: contexto da CPU ...
 		private int pc; // ... composto de program counter,
 		private Word ir; // instruction register,
@@ -147,7 +108,9 @@ public class SistemaT1_v1 {
 		private SysCallHandling sysCall; // significa desvio para tratamento de chamadas de sistema - trap
 		private boolean debug; // se true entao mostra cada instrucao em execucao
 
-		public CPU(Memory _mem, InterruptHandling _ih, SysCallHandling _sysCall, boolean _debug) { // ref a MEMORIA e
+		
+
+		public CPU(Memory _mem, int tamParticao, InterruptHandling _ih, SysCallHandling _sysCall, boolean _debug) { // ref a MEMORIA e
 																									// interrupt handler
 																									// passada na
 																									// criacao da CPU
@@ -503,23 +466,32 @@ public class SistemaT1_v1 {
 	// -------------------------- atributos e construcao da VM
 	// -----------------------------------------------
 	public class VM {
-		public int tamMem;
-		public int tamPart;
-		public Word[] m;
-		public Memory mem;
-		public CPU cpu;
+		public int tamMem; 
+		public int tamParticao;   
+        public Word[] m;  
+		public Memory mem;   
+        public CPU cpu;    
 
-		public VM(InterruptHandling ih, SysCallHandling sysCall) {
-			// vm deve ser configurada com endereço de tratamento de interrupcoes e de
-			// chamadas de sistema
-			// cria memória
-			tamMem = 1024;
-			tamPart = 64;
-			mem = new Memory(tamMem, tamPart);
-			m = mem.m;
-			// cria cpu
-			cpu = new CPU(mem, ih, sysCall, true); // true liga debug
+        public VM(InterruptHandling ih, SysCallHandling sysCall, int tamMem, int tamParticao) {   
+		 // vm deve ser configurada com endereço de tratamento de interrupcoes e de chamadas de sistema
+	     // cria memória
+		     this.tamMem = tamMem;
+			 this.tamParticao = tamParticao;
+  		 	 mem = new Memory(tamMem);
+			 m = mem.m;
+
+	  	 // cria cpu
+			 cpu = new CPU(mem, tamParticao,ih,sysCall, true);                   // true liga debug
+	    }
+		
+		public int getTamMem() {
+            return tamMem;
+        }
+
+		public int getTamParticao() {
+			return tamParticao;
 		}
+
 	}
 	// ------------------- V M - fim
 	// ------------------------------------------------------------------------
@@ -619,6 +591,7 @@ public class SistemaT1_v1 {
 	// -----------------------------------------
 	// ------------------ load é invocado a partir de requisição do usuário
 
+
 	private void loadProgram(Word[] p, Word[] m) {
 		for (int i = 0; i < p.length; i++) {
 			m[i].opc = p[i].opc;
@@ -643,6 +616,168 @@ public class SistemaT1_v1 {
 		vm.mem.dump(0, p.length); // dump da memoria com resultado
 	}
 
+	private void loadAndExecGM_GP(Word[] p){
+		//aciona o GP para criar processos
+		gp.criaProcesso(p);
+
+		
+
+	}
+
+	// ------------------- GM GP PCB - inicio
+
+
+	public class GM{
+
+		private Word[] programa;
+		private Memory mem;
+		private int tamMem;
+		private int tamPart;
+		private int partAlocada;
+		private int numPart;
+
+		public boolean [] particoesLivres;
+
+		public GM(int tamMem, int tamPart){
+			this.tamMem = tamMem;
+			this.tamPart = tamPart;
+			numPart= tamMem/tamPart;
+			this.partAlocada = -1;
+			this.particoesLivres = new boolean[numPart];
+			for(int i = 0; i < numPart; i++){
+				particoesLivres[i] = true;
+			}
+		}
+
+		
+		private int alocaParticao(Word[] programa){
+			if (programa.length > tamPart) {
+				System.out.println("Programa muito grande para o tamanho de partição");
+				return -1;
+			}
+
+			for (int i = 0; i < numPart; i++) {//percorre as partiçoes, a primeira que estiver livre retorna para o GP
+				if (particoesLivres[i]) {
+					particoesLivres[i] = false;
+					partAlocada = i * tamPart;
+					System.out.println("Alocar na partição: " + partAlocada);
+					return partAlocada;
+				}
+			}
+			System.out.println("Não há partições livres");
+			return 0; // se 0 significa que não há partições livres
+
+
+		}
+
+		private void desalocaParticao(int particao){
+			particao = particao/tamPart;
+				for(int i = 0; i < numPart; i++){
+				if(particao == i){
+					particoesLivres[i] = true;
+					System.out.println("Partição desalocada: " + particao);
+				}
+			}
+		}
+
+		public void imprimeParticao(int particicaoProg){
+			int endereco = traduzEnderecoFisico(particicaoProg);
+			for (int i=0; i<=programa.length; i++){
+				System.out.println("Endereço: " + endereco + " - " + mem.m[endereco].opc + " " + mem.m[endereco].r1 + " " + mem.m[endereco].r2 + " " + mem.m[endereco].p);
+				endereco++;
+
+			}
+		}
+
+		private int traduzEnderecoFisico(int enderecoPrograma, int particaoPrograma){// função que traduz para o enederço físico da memória
+			if (enderecoPrograma < 0 || enderecoPrograma > tamPart) {
+				System.out.println("Endereço inválido");
+				return -1;
+			}
+			int enderecoFisico = (particaoPrograma* tamPart) - 1 + enderecoPrograma;
+			return enderecoFisico;
+		}
+
+		private int traduzEnderecoFisico( int particaoPrograma){// função que traduz para o enederço físico da memória
+	 		int enderecoFisico = (particaoPrograma* tamPart);
+			return enderecoFisico;
+		}
+
+
+	}
+
+	public class GP{
+		private GM gm;
+		private Word[] memory;
+		private int idProcesso;
+		private LinkedList<PCB> prontos;
+		private int idProcessoRodando;
+
+		
+		public GP(){
+			this.idProcesso = 0;
+			this.idProcessoRodando = 0;
+		}
+
+		public void carregaGP(GM gm, Word[] memory, LinkedList<PCB> prontos) {
+            this.gm = gm;
+            this.memory = memory;
+            this.prontos = prontos;
+        }
+		
+		private boolean criaProcesso(Word[] programa){
+			int particao = gm.alocaParticao(programa);
+			if (particao == -1) {
+				System.out.println("Não foi possível ciar processo em memória");
+				return false;
+			}
+			PCB pcbProcesso = new PCB();
+			pcbProcesso.setPCB(particao,idProcesso,0);
+			prontos.add(pcbProcesso);
+			idProcesso++;
+			System.out.println("Processo criado com id: " + idProcesso + " na partição: " + particao);
+			return true;
+
+		}
+
+		private void desalocaProcesso (int idProcesso){
+			PCB pcbProcesso = prontos.get(idProcesso);
+			gm.desalocaParticao(pcbProcesso.getParticao());
+			System.out.println("Processo desalocado: " + idProcesso);
+			prontos.remove(idProcesso);
+		}
+
+	}
+
+	public class PCB{
+		private int idProcesso;
+		private int particao;
+		private int pc;
+
+		public void setPCB(int particao, int idProcesso, int pc) {
+			this.particao = particao;
+			this.idProcesso = idProcesso;
+			this.pc = pc;
+		}
+
+		public int getParticao(){
+			return particao;
+		}
+
+		public int getIdProcesso(){
+			return idProcesso;
+		}	
+
+		public int getPc(){
+			return pc;
+		}
+	}
+
+
+	// ------------------ GM GP PCB - fim
+
+	
+
 	// -------------------------------------------------------------------------------------------------------
 	// ------------------- S I S T E M A
 	// --------------------------------------------------------------------
@@ -651,14 +786,26 @@ public class SistemaT1_v1 {
 	public InterruptHandling ih;
 	public SysCallHandling sysCall;
 	public static Programas progs;
+	public GM gm;
+	public GP gp;
+	private LinkedList<PCB> prontos;
 
-	public SistemaT1_v1() { // a VM com tratamento de interrupções
+	public SistemaT1_v1(int tamMem, int tamPart) { // a VM com tratamento de interrupções
 		ih = new InterruptHandling();
 		sysCall = new SysCallHandling();
-		vm = new VM(ih, sysCall);
+		vm = new VM(ih, sysCall, tamMem, tamPart);
 		sysCall.setVM(vm);
 		progs = new Programas();
+		gm = new GM(vm.tamMem, tamPart);
+		gp = new GP();
+		prontos = new LinkedList();
+		
+		gp.carregaGP(gm, vm.m, prontos);
+		//gm.imprimeParticao(0);
 	}
+	
+
+
 
 	// ------------------- S I S T E M A - fim
 	// --------------------------------------------------------------
@@ -667,8 +814,16 @@ public class SistemaT1_v1 {
 	// -------------------------------------------------------------------------------------------------------
 	// ------------------- instancia e testa sistema
 	public static void main(String args[]) {
-		SistemaT1_v1 s = new SistemaT1_v1();
-		// s.loadAndExec(progs.fibonacci10);
+
+        int tamMemoria = 1024;
+        int tamParticao = 64;
+
+
+		SistemaT1_v1 s = new SistemaT1_v1(tamMemoria, tamParticao);
+		System.out.println("Sistema iniciado");
+		System.out.println("Memória: " + tamMemoria);
+		System.out.println("Tamanho partição: " + tamParticao );
+		s.loadAndExecGM_GP(progs.fibonacci10);
 		// s.loadAndExec(progs.progMinimo);
 		// s.loadAndExec(progs.fatorial);
 		// s.loadAndExec(progs.fatorialTRAP); // saida
@@ -681,7 +836,7 @@ public class SistemaT1_v1 {
 		// s.loadAndExec(progs.fatorialTeste); // testando registrador inválido
 		// s.loadAndExec(progs.fatorialTesteEndereco); // testando endereço inválido
 		// s.loadAndExec(progs.TestandoOverflow); // testando overflow na soma
-		s.loadAndExec(progs.TestandoOverflowParam); // testando overflow no parametro recebido
+		//s.loadAndExec(progs.TestandoOverflowParam); // testando overflow no parametro recebido
 
 	}
 
