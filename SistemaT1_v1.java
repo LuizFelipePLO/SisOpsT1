@@ -618,7 +618,12 @@ public class SistemaT1_v1 {
 
 	private void loadAndExecGM_GP(Word[] p){
 		//aciona o GP para criar processos
+		//gm.imprimeParticao(vm.m, 0, 128);
 		gp.criaProcesso(p);
+		//aciona o GM para imprimir partição
+		//gm.imprimeParticao(vm.m, 0, 128);
+
+		gp.listaProcessos();
 
 		
 
@@ -629,12 +634,13 @@ public class SistemaT1_v1 {
 
 	public class GM{
 
-		private Word[] programa;
+		private Word[] m;
 		private Memory mem;
 		private int tamMem;
 		private int tamPart;
 		private int partAlocada;
 		private int numPart;
+		private LinkedList<PCB> prontos;
 
 		public boolean [] particoesLivres;
 
@@ -647,6 +653,9 @@ public class SistemaT1_v1 {
 			for(int i = 0; i < numPart; i++){
 				particoesLivres[i] = true;
 			}
+
+			//simulando partição ocupada
+            //particoesLivres[0]=false;
 		}
 
 		
@@ -660,8 +669,8 @@ public class SistemaT1_v1 {
 				if (particoesLivres[i]) {
 					particoesLivres[i] = false;
 					partAlocada = i * tamPart;
-					System.out.println("Alocar na partição: " + partAlocada);
-					return partAlocada;
+					System.out.println("Alocar na partição: " + i + " que inicia na posição: " + partAlocada);
+					return i;
 				}
 			}
 			System.out.println("Não há partições livres");
@@ -680,11 +689,27 @@ public class SistemaT1_v1 {
 			}
 		}
 
-		public void imprimeParticao(int particicaoProg){
-			int endereco = traduzEnderecoFisico(particicaoProg);
-			for (int i=0; i<=programa.length; i++){
-				System.out.println("Endereço: " + endereco + " - " + mem.m[endereco].opc + " " + mem.m[endereco].r1 + " " + mem.m[endereco].r2 + " " + mem.m[endereco].p);
-				endereco++;
+		public void dump(Word w) {
+            System.out.print("[ ");
+            System.out.print(w.opc);
+            System.out.print(", ");
+            System.out.print(w.r1);
+            System.out.print(", ");
+            System.out.print(w.r2);
+            System.out.print(", ");
+            System.out.print(w.p);
+            System.out.println("  ] ");
+        }
+
+
+		public void imprimeParticao(Word [] m, int inicio, int fim){
+			System.out.println("Partição: " + inicio + " até " + fim);
+			//int inicio = traduzEnderecoFisico(prontos.get().getParticao());
+
+			for (int i=inicio; i<=fim; i++){
+				System.out.print("Posição da Memória " +i);
+                System.out.print(":  ");
+				dump(m[i]);
 
 			}
 		}
@@ -704,24 +729,30 @@ public class SistemaT1_v1 {
 		}
 
 
+		public int getTamPart() {
+			return 0;
+		}
+
+
 	}
 
 	public class GP{
 		private GM gm;
-		private Word[] memory;
+		private Word[] mem;
 		private int idProcesso;
 		private LinkedList<PCB> prontos;
 		private int idProcessoRodando;
+		
 
 		
 		public GP(){
-			this.idProcesso = 0;
+			this.idProcesso = 1;
 			this.idProcessoRodando = 0;
 		}
 
-		public void carregaGP(GM gm, Word[] memory, LinkedList<PCB> prontos) {
+		public void carregaGP(GM gm, Word[] mem, LinkedList<PCB> prontos) {
             this.gm = gm;
-            this.memory = memory;
+            this.mem = mem;
             this.prontos = prontos;
         }
 		
@@ -731,20 +762,51 @@ public class SistemaT1_v1 {
 				System.out.println("Não foi possível ciar processo em memória");
 				return false;
 			}
+			//carga do processo na partição retornada por GM
+			for (int i = 0; i < programa.length; i++) {
+				mem[particao + i].opc = programa[i].opc;
+				mem[particao + i].r1 = programa[i].r1;
+				mem[particao + i].r2 = programa[i].r2;
+				mem[particao + i].p = programa[i].p;				
+			}
+
 			PCB pcbProcesso = new PCB();
-			pcbProcesso.setPCB(particao,idProcesso,0);
+			pcbProcesso.setPCB(particao,idProcesso,0, programa.length);
 			prontos.add(pcbProcesso);
+			System.out.println("Processo criado com id: " + idProcesso + " na posição: " + particao);
 			idProcesso++;
-			System.out.println("Processo criado com id: " + idProcesso + " na partição: " + particao);
+			
 			return true;
 
 		}
 
 		private void desalocaProcesso (int idProcesso){
 			PCB pcbProcesso = prontos.get(idProcesso);
+
 			gm.desalocaParticao(pcbProcesso.getParticao());
 			System.out.println("Processo desalocado: " + idProcesso);
 			prontos.remove(idProcesso);
+		}
+
+		public void imprimeProcessoPorID(int id){
+			PCB pcbProcesso = prontos.get(id);
+			int particao = pcbProcesso.getParticao();
+			int inicio = gm.traduzEnderecoFisico(particao);
+			int fim = inicio + pcbProcesso.getTamanhoProcesso();
+			for (int i=inicio; i<=fim; i++){
+				gm.dump(mem[i]);
+			}
+		}
+
+		public void listaProcessos(){
+			System.out.println("Lista de processos criados");
+
+			for (int i=0; i<prontos.size(); i++){
+				PCB pcbProcesso = prontos.get(i);
+
+				System.out.println("Processo: " + pcbProcesso.getIdProcesso() + " na partição: " + (prontos.get(i).getParticao()) + " posição física: " + gm.traduzEnderecoFisico(prontos.get(i).getParticao()));
+
+			}
 		}
 
 	}
@@ -753,11 +815,13 @@ public class SistemaT1_v1 {
 		private int idProcesso;
 		private int particao;
 		private int pc;
+		private int tamanhoProcesso;
 
-		public void setPCB(int particao, int idProcesso, int pc) {
+		public void setPCB(int particao, int idProcesso, int pc, int tamanhoProcesso) {
 			this.particao = particao;
 			this.idProcesso = idProcesso;
 			this.pc = pc;
+			this.tamanhoProcesso = tamanhoProcesso;
 		}
 
 		public int getParticao(){
@@ -770,6 +834,10 @@ public class SistemaT1_v1 {
 
 		public int getPc(){
 			return pc;
+		}
+
+		public int getTamanhoProcesso(){
+			return tamanhoProcesso;
 		}
 	}
 
@@ -802,6 +870,7 @@ public class SistemaT1_v1 {
 		
 		gp.carregaGP(gm, vm.m, prontos);
 		//gm.imprimeParticao(0);
+		
 	}
 	
 
@@ -824,6 +893,7 @@ public class SistemaT1_v1 {
 		System.out.println("Memória: " + tamMemoria);
 		System.out.println("Tamanho partição: " + tamParticao );
 		s.loadAndExecGM_GP(progs.fibonacci10);
+		s.loadAndExecGM_GP(progs.fatorial);
 		// s.loadAndExec(progs.progMinimo);
 		// s.loadAndExec(progs.fatorial);
 		// s.loadAndExec(progs.fatorialTRAP); // saida
