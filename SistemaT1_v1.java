@@ -616,17 +616,53 @@ public class SistemaT1_v1 {
 		vm.mem.dump(0, p.length); // dump da memoria com resultado
 	}
 
-	private void loadAndExecGM_GP(Word[] p){
+	// Aqui estou criando as funções para cada opção do Menu
+
+	//case 1
+	private void loadAndExecGM_GP(Word[] p){ 
 		//aciona o GP para criar processos
 		//gm.imprimeParticao(vm.m, 0, 128);
 		gp.criaProcesso(p);
 		//aciona o GM para imprimir partição
 		//gm.imprimeParticao(vm.m, 0, 128);
+				
+	}
 
+	//case 2
+	private void listaProcessosPCB(){
+		gp.listaProcessosPCB();
+	}
+
+	//case 3
+	private void desaloca(int id){
+		gp.desalocaProcesso(id);
+	}
+
+	//case 4
+	private void dumpM(int inicio, int fim){
+		System.out.println("Imprimindo memoria: de " + inicio + " até " + fim);
+		gm.imprimeParticao(vm.m, inicio, fim);
+	}
+
+	//case 5
+	private void executa(int idProcesso){
+		//executa o processo
+		PCB pcbProcesso = prontos.get(idProcesso);
+		if (pcbProcesso == null){
+			System.out.println("Processo não encontrado");
+		}else{
+		System.out.println("---------------------------------- inicia execucao ");
+		vm.cpu.run(); // cpu roda programa ate parar
+		}
+	}
+
+	//case 6
+
+	//case 7
+
+	//case 8
+	public void listaProcessosProntos(){
 		gp.listaProcessos();
-
-		
-
 	}
 
 	// ------------------- GM GP PCB - inicio
@@ -680,7 +716,7 @@ public class SistemaT1_v1 {
 		}
 
 		private void desalocaParticao(int particao){
-			particao = particao/tamPart;
+			//particao = particao/tamPart;
 				for(int i = 0; i < numPart; i++){
 				if(particao == i){
 					particoesLivres[i] = true;
@@ -703,7 +739,7 @@ public class SistemaT1_v1 {
 
 
 		public void imprimeParticao(Word [] m, int inicio, int fim){
-			System.out.println("Partição: " + inicio + " até " + fim);
+			//System.out.println("Partição: " + inicio + " até " + fim);
 			//int inicio = traduzEnderecoFisico(prontos.get().getParticao());
 
 			for (int i=inicio; i<=fim; i++){
@@ -727,13 +763,7 @@ public class SistemaT1_v1 {
 	 		int enderecoFisico = (particaoPrograma* tamPart);
 			return enderecoFisico;
 		}
-
-
-		public int getTamPart() {
-			return 0;
-		}
-
-
+		
 	}
 
 	public class GP{
@@ -746,7 +776,7 @@ public class SistemaT1_v1 {
 
 		
 		public GP(){
-			this.idProcesso = 1;
+			this.idProcesso = 0;
 			this.idProcessoRodando = 0;
 		}
 
@@ -764,11 +794,20 @@ public class SistemaT1_v1 {
 			}
 			//carga do processo na partição retornada por GM
 			for (int i = 0; i < programa.length; i++) {
+				mem[gm.traduzEnderecoFisico(particao)+i].opc = programa[i].opc;
+				mem[gm.traduzEnderecoFisico(particao)+i].r1 = programa[i].r1;
+				mem[gm.traduzEnderecoFisico(particao)+i].r2 = programa[i].r2;
+				mem[gm.traduzEnderecoFisico(particao)+i].p = programa[i].p;
+				
+			}
+			/*
+			for (int i = 0; i < programa.length; i++) {
 				mem[particao + i].opc = programa[i].opc;
 				mem[particao + i].r1 = programa[i].r1;
 				mem[particao + i].r2 = programa[i].r2;
 				mem[particao + i].p = programa[i].p;				
 			}
+			 */
 
 			PCB pcbProcesso = new PCB();
 			pcbProcesso.setPCB(particao,idProcesso,0, programa.length);
@@ -783,8 +822,18 @@ public class SistemaT1_v1 {
 		private void desalocaProcesso (int idProcesso){
 			PCB pcbProcesso = prontos.get(idProcesso);
 
+			int inicioDesaloca = gm.traduzEnderecoFisico(pcbProcesso.getParticao());
+			int fimDesaloca = inicioDesaloca + pcbProcesso.getTamanhoProcesso();
+			//remoção do processo na partição 
+			for (int i = inicioDesaloca; i <= fimDesaloca; i++) {
+				mem[i].opc =  Opcode.___;
+				mem[i].r1 = -1;
+				mem[i].r2 = -1;
+				mem[i].p = -1;				
+			}
+
 			gm.desalocaParticao(pcbProcesso.getParticao());
-			System.out.println("Processo desalocado: " + idProcesso);
+			System.out.println("Processo desalocado de id " + idProcesso + " desalocado com sucesso.");
 			prontos.remove(idProcesso);
 		}
 
@@ -799,12 +848,23 @@ public class SistemaT1_v1 {
 		}
 
 		public void listaProcessos(){
-			System.out.println("Lista de processos criados");
+			System.out.println("Lista de processos criados:");
 
 			for (int i=0; i<prontos.size(); i++){
 				PCB pcbProcesso = prontos.get(i);
 
 				System.out.println("Processo: " + pcbProcesso.getIdProcesso() + " na partição: " + (prontos.get(i).getParticao()) + " posição física: " + gm.traduzEnderecoFisico(prontos.get(i).getParticao()));
+
+			}
+		}
+
+		public void listaProcessosPCB(){
+			System.out.println("Lista de PCB de cada processos: ");
+
+			for (int i=0; i<prontos.size(); i++){
+				PCB pcbProcesso = prontos.get(i);
+
+				System.out.println("Processo: " + pcbProcesso.getIdProcesso() + " na partição: " + (prontos.get(i).getParticao()) + " tamanho do processo: " + pcbProcesso.getTamanhoProcesso() + " posição física: " + gm.traduzEnderecoFisico(prontos.get(i).getParticao()));
 
 			}
 		}
@@ -887,13 +947,121 @@ public class SistemaT1_v1 {
         int tamMemoria = 1024;
         int tamParticao = 64;
 
+		//--------- Menu ----------------------------------------------------------------
+		Scanner sc = new Scanner(System.in);
 
 		SistemaT1_v1 s = new SistemaT1_v1(tamMemoria, tamParticao);
-		System.out.println("Sistema iniciado");
-		System.out.println("Memória: " + tamMemoria);
-		System.out.println("Tamanho partição: " + tamParticao );
-		s.loadAndExecGM_GP(progs.fibonacci10);
-		s.loadAndExecGM_GP(progs.fatorial);
+
+
+		while (true){
+			System.out.println("Escolha uma opção:");
+			System.out.println("1 - Cria programa - cria um processo com memória alocada, PCB, etc."); //ok
+			System.out.println("2 - Dump - lista o conteúdo do PCB."); //ok
+			System.out.println("3 - Desaloca - retira o processo id do sistema."); //ok
+			System.out.println("4 - DumpM - lista a memória entre posições início e fim."); //ok
+			System.out.println("5 - Executa - executa o processo com id fornecido.");
+			System.out.println("6 - TraceOn - liga modo de execução em que CPU print cada instrução executada.");
+			System.out.println("7 - TraceOff - desliga o modo acima TraceOn.");
+			System.out.println("8 - ListaProcessos - lista os processos prontos para rodar.");//ok
+			System.out.println("0 - Sair - encerra o programa.");//ok
+
+			int option;
+			option = sc.nextInt();
+
+			switch (option){
+				case 1:
+					System.out.println("Escolha um programa da lista:");
+					System.out.println("1 - Fibonacci");
+					System.out.println("2 - ProgMinimo");
+					System.out.println("3 - Fatorial");
+					System.out.println("4 - fatorialTRAP");
+					System.out.println("5 - fibonacciTRAP");
+					System.out.println("6 - bubble sort");
+					System.out.println("7 - testeLeitura");
+					System.out.println("8 - testeEscrita");
+					System.out.println("0 - Sair");
+					int option2;
+					option2 = sc.nextInt();
+
+					switch (option2){
+						case 1:
+							s.loadAndExecGM_GP(progs.fibonacci10);
+							break;
+						case 2:
+							s.loadAndExecGM_GP(progs.progMinimo);
+							break;
+						case 3:
+							s.loadAndExecGM_GP(progs.fatorial);
+							break;
+						case 4:
+							s.loadAndExecGM_GP(progs.fatorialTRAP);
+							break;
+						case 5:	
+							s.loadAndExecGM_GP(progs.fibonacciTRAP);
+							break;
+						case 6:
+							s.loadAndExecGM_GP(progs.PC);
+							break;
+						case 7:
+							s.loadAndExecGM_GP(progs.testeLeitura);
+							break;
+						case 8:
+							s.loadAndExecGM_GP(progs.testeEscrita);
+							break;
+						case 0:
+							break;							
+					}					
+			
+			case 2:
+				s.listaProcessosPCB();
+				break;
+
+			case 3:
+				System.out.println("Digite o id do processo a ser desalocado:");
+				int id;
+				id = sc.nextInt();
+				s.desaloca(id);
+				break;
+
+			case 4: 
+				System.out.println("Digite a posição inicial:");
+				int ini;
+				ini = sc.nextInt();
+				System.out.println("Digite a posição final:");
+				int fim;
+				fim = sc.nextInt();
+				s.dumpM(ini, fim);
+				break;
+
+			case 5: 
+				System.out.println("Digite o id do processo a ser executado:");
+				int id2;
+				id2 = sc.nextInt();
+				s.executa(id2);
+				break;
+
+			case 6:
+				break;
+			case 7:
+				break;
+
+			case 8:
+				s.listaProcessosProntos();
+				break;	
+			case 0:
+				System.exit(0); 
+				
+			}
+		}	
+
+		//--------- Menu - fim ------------------------------------------------------------
+
+		//SistemaT1_v1 s = new SistemaT1_v1(tamMemoria, tamParticao);
+		//System.out.println("Sistema iniciado");
+		//System.out.println("Memória: " + tamMemoria);
+		//System.out.println("Tamanho partição: " + tamParticao );
+		//s.loadAndExecGM_GP(progs.fibonacci10);
+		//s.loadAndExecGM_GP(progs.fatorial);
 		// s.loadAndExec(progs.progMinimo);
 		// s.loadAndExec(progs.fatorial);
 		// s.loadAndExec(progs.fatorialTRAP); // saida
