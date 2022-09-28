@@ -1122,6 +1122,7 @@ public class Sistema1A {
                         case 0:
                             break;
                     }
+                    break;
 
                 case 2:
                     s.listaProcessosPCB();
