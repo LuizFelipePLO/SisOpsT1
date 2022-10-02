@@ -171,9 +171,7 @@ public class Sistema1B {
             return true;
         }
 
-        public void setContext(int _base, int _limite, int _pc, int[] paginasAlocadas) {
-            base = _base; // expandida para setar todo contexto de execucao,
-            limite = _limite; // agora, setamos somente os registradores base,
+        public void setContext(int _pc, int[] paginasAlocadas) {
             pc = _pc; // limite e pc (deve ser zero nesta versao)
             irpt = Interrupts.noInterrupt; // reset da interrupcao registrada
             this.paginasAlocadas = paginasAlocadas;
@@ -706,7 +704,7 @@ public class Sistema1B {
     }
 
     // case 5
-    public void executa() {
+    public void executa(int id2) {
         vm.cpu.setContext(0, gm.getFramesAlocados()); // monitor seta contexto - pc aponta para inicio do programa
         vm.cpu.run(); // e cpu executa
         // note aqui que o monitor espera que o programa carregado acabe normalmente
@@ -848,19 +846,14 @@ public class Sistema1B {
             System.out.println("  ] ");
         }
 
-        private int traduzEnderecoFisico(int enderecoPrograma, int particaoPrograma) {// função que traduz para o
-                                                                                      // enederço físico da memória
-            if (enderecoPrograma < 0 || enderecoPrograma > tamPart) {
-                System.out.println("----- Endereço inválido");
+        public int traduzEndereco(int[] is) {
+            try {
+                return (paginasAlocadas[(is / tamPaginaMemoria)] * tamPaginaMemoria) + (is % tamPaginaMemoria);
+
+            } catch (ArrayIndexOutOfBoundsException e) {
+                System.out.println("Retorno -1 do traduz");
                 return -1;
             }
-            int enderecoFisico = (particaoPrograma * tamPart) - 1 + enderecoPrograma;
-            return enderecoFisico;
-        }
-
-        private int traduzEnderecoFisico(int particaoPrograma) {// função que traduz para o enederço físico da memória
-            int enderecoFisico = (particaoPrograma * tamPart);
-            return enderecoFisico;
         }
 
     }
@@ -892,7 +885,7 @@ public class Sistema1B {
                 return false;
             }
 
-            PCB processo = new PCB(idProcessoRodando, paginasAlocadas);
+            PCB processo = PCB(idProcessoRodando, paginasAlocadas);
             idProcessoRodando++;
             prontos.add(processo);
 
@@ -910,9 +903,29 @@ public class Sistema1B {
             prontos.remove(processo);
         }
 
+        private void desalocaProcesso(int idProcesso) {
+            PCB pcbProcesso = prontos.get(idProcesso);
+
+            int inicioDesaloca = gm.traduzEndereco(pcbProcesso.getPaginasAlocadas());
+            int fimDesaloca = inicioDesaloca + pcbProcesso.getIdProcesso() - 1;
+            // remoção do processo na partição
+            for (int i = inicioDesaloca; i <= fimDesaloca; i++) {
+                m[i].opc = Opcode.___;
+                m[i].r1 = -1;
+                m[i].r2 = -1;
+                m[i].p = -1;
+            }
+
+            gm.desaloca(pcbProcesso);
+            System.out.println("*** Processo de id " + idProcesso + " desalocado com sucesso. ***\n");
+
+            prontos.get(idProcesso).PCB(-1, -1, gm.framesAlocados);
+            // prontos.remove(idProcesso);
+        }
+
         public void imprimeProcessoPorID(int id) {
             PCB pcbProcesso = prontos.get(id);
-            int inicio = gm.traduzEnderecoFisico(particao);
+            int inicio = gm.traduzEnderecoProcesso(endereco);
             int fim = inicio + pcbProcesso.getIdProcesso();
             for (int i = inicio; i <= fim; i++) {
                 gm.dump(m[i]);
@@ -961,7 +974,7 @@ public class Sistema1B {
         private int idProcesso;
         private int[] paginasAlocadas;
 
-        public PCB(int idProcesso, int[] paginasAlocadas) {
+        public void PCB(int idProcesso, int[] paginasAlocadas) {
             this.idProcesso = idProcesso;
             this.paginasAlocadas = paginasAlocadas;
         }
@@ -990,6 +1003,15 @@ public class Sistema1B {
     public GP gp;
     private LinkedList<PCB> prontos;
     public boolean debug;
+    private int idProcesso;
+    private int pc;
+    private int tamanhoProcesso;
+
+    public void PCB(int idProcesso, int pc, int tamanhoProcesso) {
+        this.idProcesso = idProcesso;
+        this.pc = pc;
+        this.tamanhoProcesso = tamanhoProcesso;
+    }
 
     public Sistema1B(int tamMem, int tamPagina) { // a VM com tratamento de interrupções
         ih = new InterruptHandling();
@@ -997,7 +1019,7 @@ public class Sistema1B {
         vm = new VM(ih, sysCall, tamMem, tamPagina, debug);
         sysCall.setVM(vm);
         progs = new Programas();
-        gm = new GM(vm.m, tamPagina);
+        gm = new GM();
         gp = new GP();
         prontos = new LinkedList();
 
