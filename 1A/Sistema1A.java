@@ -1016,6 +1016,23 @@ public class Sistema1A {
         public int getTamanhoProcesso() {
             return tamanhoProcesso;
         }
+        public void setPc(int pc) {
+            this.pc = pc;
+        }
+        public void setParticao(int particao) {
+            this.particao = particao;
+        }
+        public void setIdProcesso(int idProcesso) {
+            this.idProcesso = idProcesso;
+        }
+        public void setTamanhoProcesso(int tamanhoProcesso) {
+            this.tamanhoProcesso = tamanhoProcesso;
+        }
+
+        @Override
+        public String toString() {
+            return "Processo: " + idProcesso + " na partição: " + particao + " com tamanho: " + tamanhoProcesso + " e pc: " + pc;
+        }
     }
 
 
