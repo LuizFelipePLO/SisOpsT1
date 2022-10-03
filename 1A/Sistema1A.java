@@ -123,7 +123,7 @@ public class Sistema1A {
         public boolean debug;
 
 
-        public CPU(Memory _mem, int tamParticao, InterruptHandling _ih, SysCallHandling _sysCall) { // ref a MEMORIA e
+        public CPU(Memory _mem, int _tamParticao, InterruptHandling _ih, SysCallHandling _sysCall) { // ref a MEMORIA e
             // interrupt handler
             // passada na
             // criacao da CPU
@@ -134,7 +134,7 @@ public class Sistema1A {
             reg = new int[10]; // aloca o espaço dos registradores - regs 8 e 9 usados somente para IO
             ih = _ih; // aponta para rotinas de tratamento de int
             sysCall = _sysCall; // aponta para rotinas de tratamento de chamadas de sistema
-            tamParticao = tamParticao;
+            tamParticao = _tamParticao;
         }
 
        
@@ -185,7 +185,7 @@ public class Sistema1A {
 
         public int traduzEnderecoProcesso(int endereco) {
             if (enderecoValido(endereco)) {
-                endereco = (particao * tamParticao) + endereco;
+                endereco = (particao * tamParticao) - 1 + endereco;
                 return endereco;
             }
             System.out.println("Erro ao traduzir endereço do processo");
@@ -208,8 +208,7 @@ public class Sistema1A {
 
 
                 if (legal(pc)) { // pc valido
-
-                     ir = m[traduzEnderecoProcesso(pc)]; // <<<<<<<<<<<< busca posicao da memoria apontada por pc, guarda em ir
+                    ir = m[pc]; // <<<<<<<<<<<< busca posicao da memoria apontada por pc, guarda em ir
                     if (debug) {
                         System.out.print("                               pc: " + pc + "       exec: ");
                         mem.dump(ir);
@@ -583,10 +582,6 @@ public class Sistema1A {
                     System.out.println("Motivo: Chamada de sistema");
                     terminal();
                     break;
-                case intSTOP:
-                    System.out.println("Final do Programa");
-                    //finalizaProcesso();
-                    break;    
             }
         }
 
@@ -719,19 +714,18 @@ public class Sistema1A {
             int pcProcesso = pcbProcesso.getPc();
             int particaoProcesso = pcbProcesso.getParticao();
             int tamanhoProcesso = pcProcesso + pcbProcesso.getTamanhoProcesso();
-            int posInicio=  pcbProcesso.getParticao()*gm.tamPart;
-            int posFim = posInicio + tamanhoProcesso;
 
             System.out.println("-      Executando processo: " + idProcesso + " na particao: " + particaoProcesso + " com pc: " + pcProcesso + " e tamanho: " + pcbProcesso.getTamanhoProcesso());
-            vm.mem.dump(posInicio, posFim+1);
+            vm.mem.dump(pcProcesso, tamanhoProcesso);
 
             System.out.println("---------------------------------- inicia execucao ");
 
-            vm.cpu.setContext(posInicio, posFim, pcProcesso, particaoProcesso); // seta estado da cpu ]
+
+            vm.cpu.setContext(0, vm.tamMem - 1, pcProcesso, particaoProcesso); // seta estado da cpu ]
             vm.cpu.run();
 
             System.out.println("---------------------------------- memoria após execucao ");
-            vm.mem.dump(posInicio, posFim+1); // dump da memoria com resultado
+            vm.mem.dump(pcProcesso, tamanhoProcesso); // dump da memoria com resultado
         }
         catch(IndexOutOfBoundsException e) {
             System.out.println("----- Processo não encontrado");
@@ -747,8 +741,21 @@ public class Sistema1A {
 
 
     //case 8
-    public void listaProcessosProntos() {
-        gp.listaProcessos();
+    public void listaProcessosPorID(int id) {
+        try{
+            PCB pcbProcesso = prontos.get(id);
+
+            System.out.println("------- Processo encontrado: "); 
+            System.out.println("------- Conteúdo do PCB: " + pcbProcesso.toString());
+            int inicio = pcbProcesso.getParticao()*gm.tamPart;
+            int fim = inicio + pcbProcesso.getTamanhoProcesso();   
+            System.out.println("------- Conteúdo da memória: ");     
+            vm.mem.dump(inicio, fim);
+                  
+        }
+        catch (Exception e){
+            System.out.println("------- Processo não encontrado");
+        }   
     }
 
     // ------------------- GM GP PCB - inicio
@@ -908,7 +915,7 @@ public class Sistema1A {
 			 */
 
             PCB pcbProcesso = new PCB();
-            int pcProcesso = particao * gm.tamPart;
+            int pcProcesso = gm.traduzEnderecoFisico(particao);
             pcbProcesso.setPCB(particao, idProcesso, pcProcesso, programa.length);
             prontos.add(pcbProcesso);
             System.out.println("-     Gerente de processos: Processo criado com id: " + idProcesso + " na posição: " + particao + " com tamanho: " + programa.length + " e pc: " + pcProcesso + " \n");
@@ -1066,13 +1073,13 @@ public class Sistema1A {
             System.out.println(" \n____________________________________________________________________________________");
             System.out.println("    Escolha uma opção:");
             System.out.println("    1 - Cria programa - cria um processo com memória alocada, PCB, etc."); //ok
-            System.out.println("    2 - Dump - lista o conteúdo do PCB."); //ok
+            System.out.println("    2 - ListaProcessos - lista os processos prontos para rodar."); //ok
             System.out.println("    3 - Desaloca - retira o processo id do sistema."); //ok
             System.out.println("    4 - DumpM - lista a memória entre posições início e fim."); //ok
             System.out.println("    5 - Executa - executa o processo com id fornecido.");
             System.out.println("    6 - TraceOn - liga modo de execução em que CPU print cada instrução executada.");
             System.out.println("    7 - TraceOff - desliga o modo acima TraceOn.");
-            System.out.println("    8 - ListaProcessos - lista os processos prontos para rodar.");//ok
+            System.out.println("    8 - Dump - lista o conteúdo do PCB.");//ok
             System.out.println("    0 - Sair - encerra o programa.");//ok
             System.out.println(" ____________________________________________________________________________________\n");
 
@@ -1111,7 +1118,7 @@ public class Sistema1A {
                             s.loadAndExecGM_GP(progs.fatorial);
                             break;
                         case 4:
-                            s.loadAndExecGM_GP(progs.fatorialTRAP2);
+                            s.loadAndExecGM_GP(progs.fatorialTRAP);
                             break;
                         case 5:
                             s.loadAndExecGM_GP(progs.fibonacciTRAP);
@@ -1169,7 +1176,10 @@ public class Sistema1A {
                     break;
 
                 case 8:
-                    s.listaProcessosProntos();
+                    System.out.println("Digite o id do processo consultado:");
+                    int id3;
+                    id3 = sc.nextInt();
+                    s.listaProcessosPorID(id3);
                     break;
                 case 0:
                     System.exit(0);
@@ -1265,51 +1275,26 @@ public class Sistema1A {
                 new Word(Opcode.DATA, -1, -1, -1),
                 new Word(Opcode.DATA, -1, -1, -1)}; // ate aqui - serie de fibonacci ficara armazenada
 
-                public Word[] fatorialTRAP2 = new Word[]{
-                    new Word(Opcode.LDI, 0, -1, 7), // numero para colocar na memoria
-                    new Word(Opcode.STD, 0, -1, 19),
-                    new Word(Opcode.LDD, 0, -1, 19),
-                    new Word(Opcode.LDI, 1, -1, -1),
-                    new Word(Opcode.LDI, 2, -1, 13), // SALVAR POS STOP
-                    new Word(Opcode.JMPIL, 2, 0, -1), // caso negativo pula pro STD
-                    new Word(Opcode.LDI, 1, -1, 1),
-                    new Word(Opcode.LDI, 6, -1, 1),
-                    new Word(Opcode.LDI, 7, -1, 13),
-                    new Word(Opcode.JMPIE, 7, 0, 0), // POS 9 pula pra STD (Stop-1)
-                    new Word(Opcode.MULT, 1, 0, -1),
-                    new Word(Opcode.SUB, 0, 6, -1),
-                    new Word(Opcode.JMP, -1, -1, 9), // pula para o JMPIE
-                    new Word(Opcode.STD, 1, -1, 18),
-                    new Word(Opcode.LDI, 8, -1, 2), // escrita
-                    new Word(Opcode.LDI, 9, -1, 18), // endereco com valor a escrever
-                    new Word(Opcode.TRAP, -1, -1, -1),
-                    new Word(Opcode.STOP, -1, -1, -1), // POS 17
-                    new Word(Opcode.DATA, -1, -1, -1),// POS 18
-                    new Word(Opcode.DATA, -1, -1, -1)};// POS 19
-                
-                public Word[] fatorialTRAP = new Word[]{
-                        new Word(Opcode.LDI, 0, -1, 7), // numero para colocar na memoria
-                        new Word(Opcode.STD, 0, -1, 50),
-                        new Word(Opcode.LDD, 0, -1, 50),
-                        new Word(Opcode.LDI, 1, -1, -1),
-                        new Word(Opcode.LDI, 2, -1, 13), // SALVAR POS STOP
-                        new Word(Opcode.JMPIL, 2, 0, -1), // caso negativo pula pro STD
-                        new Word(Opcode.LDI, 1, -1, 1),
-                        new Word(Opcode.LDI, 6, -1, 1),
-                        new Word(Opcode.LDI, 7, -1, 13),
-                        new Word(Opcode.JMPIE, 7, 0, 0), // POS 9 pula pra STD (Stop-1)
-                        new Word(Opcode.MULT, 1, 0, -1),
-                        new Word(Opcode.SUB, 0, 6, -1),
-                        new Word(Opcode.JMP, -1, -1, 9), // pula para o JMPIE
-                        new Word(Opcode.STD, 1, -1, 18),
-                        new Word(Opcode.LDI, 8, -1, 2), // escrita
-                        new Word(Opcode.LDI, 9, -1, 18), // endereco com valor a escrever
-                        new Word(Opcode.TRAP, -1, -1, -1),
-                        new Word(Opcode.STOP, -1, -1, -1), // POS 17
-                        new Word(Opcode.DATA, -1, -1, -1)};// POS 18    
-                        
-                        
-
+        public Word[] fatorialTRAP = new Word[]{
+                new Word(Opcode.LDI, 0, -1, 7), // numero para colocar na memoria
+                new Word(Opcode.STD, 0, -1, 50),
+                new Word(Opcode.LDD, 0, -1, 50),
+                new Word(Opcode.LDI, 1, -1, -1),
+                new Word(Opcode.LDI, 2, -1, 13), // SALVAR POS STOP
+                new Word(Opcode.JMPIL, 2, 0, -1), // caso negativo pula pro STD
+                new Word(Opcode.LDI, 1, -1, 1),
+                new Word(Opcode.LDI, 6, -1, 1),
+                new Word(Opcode.LDI, 7, -1, 13),
+                new Word(Opcode.JMPIE, 7, 0, 0), // POS 9 pula pra STD (Stop-1)
+                new Word(Opcode.MULT, 1, 0, -1),
+                new Word(Opcode.SUB, 0, 6, -1),
+                new Word(Opcode.JMP, -1, -1, 9), // pula para o JMPIE
+                new Word(Opcode.STD, 1, -1, 18),
+                new Word(Opcode.LDI, 8, -1, 2), // escrita
+                new Word(Opcode.LDI, 9, -1, 18), // endereco com valor a escrever
+                new Word(Opcode.TRAP, -1, -1, -1),
+                new Word(Opcode.STOP, -1, -1, -1), // POS 17
+                new Word(Opcode.DATA, -1, -1, -1)};// POS 18
 
         public Word[] fibonacciTRAP = new Word[]{ // mesmo que prog exemplo, so que usa r0 no lugar de r8
                 new Word(Opcode.LDI, 8, -1, 1), // leitura

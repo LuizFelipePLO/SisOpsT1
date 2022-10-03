@@ -1264,7 +1264,7 @@ public class Sistema1B {
                     break;
 
                 case 8:
-                    System.out.println("Digite o id do processo a ser executado:");
+                    System.out.println("Digite o id do processo a ser consultado:");
                     int id3;
                     id3 = sc.nextInt();
                     s.executa(id3);
