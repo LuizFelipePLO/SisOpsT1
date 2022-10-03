@@ -257,7 +257,7 @@ public class Sistema1B {
                                 break;
 
                         case STD: // [A] ← Rs armazena na memória
-                            if (registradorValido(ir.r1) && enderecoValido(ir.p) && testOverflow(reg[ir.r1])) {
+                            if (registradorValido(ir.r1) && enderecoValido(traduzEnderecoProcesso(ir.p)) && testOverflow(reg[ir.r1])) {
                                 m[traduzEnderecoProcesso(ir.p)].opc = Opcode.DATA;
                                 m[traduzEnderecoProcesso(ir.p)].p = reg[ir.r1];
                                 pc++;
@@ -898,7 +898,7 @@ public class Sistema1B {
 
 
                 //libera a memória
-                for(int j = paginas[i]*tamFrame; j < (paginas[i]+1)*tamFrame-1; j++){    //frame inicia em (f)*tamFrame --- ex: 1 * 8 = 8 
+                for(int j = paginas[i]*tamFrame; j < (paginas[i]+1)*tamFrame; j++){    //frame inicia em (f)*tamFrame --- ex: 1 * 8 = 8 
                                                                                            //frame termina em (f+1)*tamFrame -1 --- ex:(1+1)*8-1= 15      
                     m[j].opc =  Opcode.___;
                     m[j].r1 = -1;
@@ -982,7 +982,7 @@ public class Sistema1B {
 
         private boolean criaProcesso(Word[] programa) {
             int[] paginasAlocadas = gm.alocaPagina(programa);
-            System.out.println(paginasAlocadas.length);
+            //System.out.println(paginasAlocadas.length);
             if (paginasAlocadas[0] == -1) {
                 System.out.println("----- Não foi possível criar processo em memória");
                 return false;
@@ -994,8 +994,8 @@ public class Sistema1B {
             //processo.setPc(pcProcesso);
             int indicePrograma=0;
             for (int i=0; i<paginasAlocadas.length; i++) {
-                System.out.println("i: " + i);
-                System.out.println("Pagina alocada: " + paginasAlocadas[i]);
+                //System.out.println("i: " + i);
+                //System.out.println("Pagina alocada: " + paginasAlocadas[i]);
                 int indice = paginasAlocadas[i]*gm.tamFrame;
                 for (int j=indice; j<indice+gm.tamFrame; j++) {
                     if(indicePrograma>=programa.length) {
@@ -1101,7 +1101,7 @@ public class Sistema1B {
 
         @Override
         public String toString() {
-            return "PCB [id do Programa =" + idPCB + ", pc=" + pc + ", tamanhoProcesso=" + tamanhoProcesso + " Alocação em memória: " + frames + "]" + "\n";
+            return "PCB [id do Programa =" + idPCB + ", pc=" + pc + ", tamanhoProcesso=" + tamanhoProcesso + " Alocação em memória: " + Arrays.toString(frames) + "]";
         }
     }
 
@@ -1161,7 +1161,7 @@ public class Sistema1B {
             System.out.println(" \n____________________________________________________________________________________");
             System.out.println("    Escolha uma opção:");
             System.out.println("    1 - Cria programa - cria um processo com memória alocada, PCB, etc."); 
-            System.out.println("    2 - Dump - lista o conteúdo do PCB."); 
+            System.out.println("    2 - ListaProcessos - lista os processos prontos para rodar."); 
             System.out.println("    3 - Desaloca - retira o processo id do sistema."); 
             System.out.println("    4 - DumpM - lista a memória entre posições início e fim."); 
             System.out.println("    5 - Executa - executa o processo com id fornecido.");
@@ -1267,7 +1267,6 @@ public class Sistema1B {
                     System.out.println("Digite o id do processo a ser consultado:");
                     int id3;
                     id3 = sc.nextInt();
-                    s.executa(id3);
                     s.listaProcessosPorID(id3);
                     break;
                 case 0:
